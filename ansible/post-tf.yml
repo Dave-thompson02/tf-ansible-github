@@ -1,0 +1,27 @@
+---
+- name: Post-provision Terraform - create Route and print URL
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    project: demo-js
+    app: js-app
+
+  tasks:
+    - name: Wait for deployment
+      command: oc -n {{ project }} rollout status deployment/{{ app }} --timeout=300s
+
+    - name: Create Route
+      command: oc -n {{ project }} expose service/{{ app }} --name {{ app }}
+      register: expose_out
+      failed_when: expose_out.rc not in [0, 3]
+      changed_when: expose_out.rc == 0
+
+    - name: Get Route host
+      command: oc -n {{ project }} get route/{{ app }} -o jsonpath='{.spec.host}'
+      register: route_host
+
+    - name: Print URL
+      debug:
+        msg: "Application URL: http://{{ route_host.stdout }}"
